@@ -241,7 +241,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v16</h1>
+      <h1>Munten Teller (foto)v17</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -277,7 +277,7 @@
             <div style="padding: 10px; display: grid; gap: 10px;">
               <div class="control">
                 <label for="resizeMax">Max breedte voor analyse <span id="resizeMaxVal">650</span> px</label>
-                <input id="resizeMax" type="range" min="650" max="650" step="1" value="650" disabled />
+                <input id="resizeMax" type="range" min="400" max="900" step="10" value="650" />
               </div>
 
               <div class="control">
@@ -439,7 +439,7 @@
     }
 
     function drawImageToCanvas() {
-      const maxW = 650;
+      const maxW = Math.max(200, Number(els.resizeMax && els.resizeMax.value ? els.resizeMax.value : 650));
       const scale = Math.min(1, maxW / sourceImg.naturalWidth);
       const w = Math.max(1, Math.round(sourceImg.naturalWidth * scale));
       const h = Math.max(1, Math.round(sourceImg.naturalHeight * scale));
