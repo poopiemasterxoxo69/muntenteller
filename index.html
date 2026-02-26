@@ -4,7 +4,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Munten Teller</title>
+  <meta name="theme-color" content="#0b1220" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Munten Tellerv1</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <style>
     :root {
       --bg: #0b1220;
@@ -242,7 +247,7 @@
         <div class="row">
           <div class="control">
             <label for="fileInput">Foto</label>
-            <input id="fileInput" type="file" accept="image/*" />
+            <input id="fileInput" type="file" accept="image/*,.heic,.heif" />
           </div>
 
           <div class="btns">
@@ -324,7 +329,14 @@
   </div>
 
   <script async src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript"></script>
+  <script defer src="https://unpkg.com/heic2any/dist/heic2any.min.js" type="text/javascript"></script>
   <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
     const els = {
       fileInput: document.getElementById('fileInput'),
       canvas: document.getElementById('canvas'),
@@ -561,25 +573,72 @@
       link.click();
     }
 
-    function setImageFromFile(file) {
+    function isHeicFile(file) {
+      const name = String(file && file.name ? file.name : '').toLowerCase();
+      const type = String(file && file.type ? file.type : '').toLowerCase();
+      return type.includes('heic') || type.includes('heif') || name.endsWith('.heic') || name.endsWith('.heif');
+    }
+
+    async function toDisplayableBlob(file) {
+      if (!file) return null;
+
+      if (!isHeicFile(file)) {
+        return file;
+      }
+
+      if (typeof heic2any !== 'function') {
+        throw new Error('HEIC wordt nog niet ondersteund (converter kon niet laden).');
+      }
+
+      const out = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.92,
+      });
+
+      if (out instanceof Blob) return out;
+      if (Array.isArray(out) && out[0] instanceof Blob) return out[0];
+      throw new Error('HEIC conversie mislukt.');
+    }
+
+    async function setImageFromFile(file) {
       if (!file) return;
-      const url = URL.createObjectURL(file);
-      sourceImg = new Image();
-      sourceImg.onload = () => {
-        URL.revokeObjectURL(url);
-        imageLoaded = true;
-        drawImageToCanvas();
-        resetOutput();
-        els.detectBtn.disabled = !opencvReady;
-        els.resetBtn.disabled = false;
-        els.downloadBtn.disabled = false;
-      };
-      sourceImg.onerror = () => {
-        URL.revokeObjectURL(url);
+
+      setBusy(true);
+      els.msg.textContent = '';
+      imageLoaded = false;
+      els.detectBtn.disabled = true;
+      els.resetBtn.disabled = true;
+      els.downloadBtn.disabled = true;
+
+      let url = '';
+      try {
+        const blob = await toDisplayableBlob(file);
+        url = URL.createObjectURL(blob);
+        sourceImg = new Image();
+        sourceImg.onload = () => {
+          URL.revokeObjectURL(url);
+          imageLoaded = true;
+          drawImageToCanvas();
+          resetOutput();
+          els.detectBtn.disabled = !opencvReady;
+          els.resetBtn.disabled = false;
+          els.downloadBtn.disabled = false;
+          setBusy(false);
+        };
+        sourceImg.onerror = () => {
+          URL.revokeObjectURL(url);
+          imageLoaded = false;
+          els.msg.innerHTML = '<span class="err">Kon deze afbeelding niet laden.</span> Als dit een HEIC foto is: probeer opnieuw na een paar seconden (converter laden), of zet je iPhone camera op “Meest compatibel”.';
+          setBusy(false);
+        };
+        sourceImg.src = url;
+      } catch (e) {
+        if (url) URL.revokeObjectURL(url);
         imageLoaded = false;
-        els.msg.innerHTML = '<span class="err">Kon deze afbeelding niet laden.</span>';
-      };
-      sourceImg.src = url;
+        els.msg.innerHTML = '<span class="err">Upload probleem: </span>' + String(e && e.message ? e.message : e);
+        setBusy(false);
+      }
     }
 
     function wireEvents() {
@@ -611,19 +670,22 @@
 
       function tick() {
         const elapsed = Date.now() - start;
-        if (typeof cv !== 'undefined' && cv && cv.Mat) {
-          if (cv['onRuntimeInitialized']) {
-            cv['onRuntimeInitialized'] = () => {
-              opencvReady = true;
-              setCvStatus('ok', 'OpenCV klaar');
-              els.detectBtn.disabled = !imageLoaded;
-            };
-          } else {
+        if (typeof cv !== 'undefined' && cv) {
+          if (typeof cv.imread === 'function' && typeof cv.Mat === 'function') {
             opencvReady = true;
             setCvStatus('ok', 'OpenCV klaar');
-            els.detectBtn.disabled = !imageLoaded;
+            els.detectBtn.disabled = !imageLoaded || busy;
+            return;
           }
-          return;
+          if (typeof cv.onRuntimeInitialized === 'function') {
+            const prev = cv.onRuntimeInitialized;
+            cv.onRuntimeInitialized = () => {
+              try { prev(); } catch (_) {}
+              opencvReady = true;
+              setCvStatus('ok', 'OpenCV klaar');
+              els.detectBtn.disabled = !imageLoaded || busy;
+            };
+          }
         }
         if (elapsed > maxWaitMs) {
           setCvStatus('bad', 'OpenCV laden mislukt');
