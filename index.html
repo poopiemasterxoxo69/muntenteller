@@ -241,7 +241,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v7</h1>
+      <h1>Munten Teller (foto)v8</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -256,8 +256,8 @@
           </div>
 
           <div class="control">
-            <label for="whiteMode">Witte achtergrond modus <span>aanrader bij A4</span></label>
-            <input id="whiteMode" type="checkbox" checked />
+            <label for="whiteMode">Witte achtergrond modus <span>experimenteel</span></label>
+            <input id="whiteMode" type="checkbox" />
           </div>
 
           <div class="btns">
@@ -688,7 +688,7 @@
           hits += sampleMask(rx, ry);
         }
         const ratio = hits / samples;
-        if (ratio >= 0.12) out.push(c);
+        if (ratio >= 0.05) out.push(c);
       }
       return out;
     }
