@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0b1220" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Munten Tellerv1</title>
+  <title>Munten Teller</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <style>
@@ -236,7 +236,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)</h1>
+      <h1>Munten Teller (foto)v2</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -295,13 +295,13 @@
               </div>
 
               <div class="control">
-                <label for="minRadius">Min radius <span id="minRadiusVal">18</span></label>
-                <input id="minRadius" type="range" min="0" max="200" step="1" value="18" />
+                <label for="minRadius">Min radius <span id="minRadiusVal">35</span></label>
+                <input id="minRadius" type="range" min="0" max="200" step="1" value="35" />
               </div>
 
               <div class="control">
-                <label for="maxRadius">Max radius <span id="maxRadiusVal">120</span></label>
-                <input id="maxRadius" type="range" min="0" max="400" step="1" value="120" />
+                <label for="maxRadius">Max radius <span id="maxRadiusVal">160</span></label>
+                <input id="maxRadius" type="range" min="0" max="400" step="1" value="160" />
               </div>
             </div>
           </details>
@@ -490,7 +490,33 @@
     }
 
     function nextFrame() {
-      return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      return new Promise((resolve) => requestAnimationFrame(() => resolve()))
+    }
+
+    function dedupeCircles(circles) {
+      if (!circles || circles.length <= 1) return circles || [];
+      const sorted = [...circles].sort((a, b) => b.r - a.r);
+      const kept = [];
+
+      for (const c of sorted) {
+        let ok = true;
+        for (const k of kept) {
+          const dx = c.x - k.x;
+          const dy = c.y - k.y;
+          const d = Math.hypot(dx, dy);
+          const rMin = Math.min(c.r, k.r);
+          const rMax = Math.max(c.r, k.r);
+          const similarSize = (rMax / Math.max(1, rMin)) < 1.25;
+          const veryClose = d < (0.35 * rMin);
+          if (similarSize && veryClose) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) kept.push(c);
+      }
+
+      return kept.sort((a, b) => (a.y - b.y) || (a.x - b.x));
     }
 
     async function detectCoins() {
@@ -542,7 +568,8 @@
           }
         }
 
-        out.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+        out = out.filter((c) => c.r >= Math.max(0, minRadius));
+        out = dedupeCircles(out);
 
         src.delete();
         gray.delete();
@@ -701,3 +728,4 @@
   </script>
 </body>
 </html>
+s
