@@ -400,9 +400,7 @@
 
           <div class="btns">
             <button id="detectBtn" class="primary" disabled>Detecteer & tel</button>
-            <button id="editBtn" disabled>Bewerken: uit</button>
             <button id="resetBtn" disabled>Reset</button>
-            <button id="clearCirclesBtn" disabled>Wis cirkels</button>
             <button id="downloadBtn" disabled>Download resultaat</button>
           </div>
 
@@ -483,7 +481,10 @@
       </section>
 
       <section class="card">
-        <h2>Resultaat</h2>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 14px;">
+          <h2 style="margin: 0; flex: 1;">Resultaat</h2>
+          <button id="editBtn" disabled style="padding: 8px 12px; font-size: 12px;">Bewerken: uit</button>
+        </div>
         <div class="canvasWrap">
           <canvas id="canvas"></canvas>
           <div class="hint">
@@ -610,7 +611,6 @@
       detectBtn: document.getElementById('detectBtn'),
       editBtn: document.getElementById('editBtn'),
       resetBtn: document.getElementById('resetBtn'),
-      clearCirclesBtn: document.getElementById('clearCirclesBtn'),
       downloadBtn: document.getElementById('downloadBtn'),
       count: document.getElementById('count'),
       msg: document.getElementById('msg'),
@@ -666,7 +666,6 @@
       busy = isBusy;
       els.detectBtn.disabled = !opencvReady || !imageLoaded || busy;
       els.resetBtn.disabled = !imageLoaded || busy;
-      els.clearCirclesBtn.disabled = !imageLoaded || busy || circlesState.length === 0;
       els.downloadBtn.disabled = !imageLoaded || busy;
       if (els.progressWrap) {
         els.progressWrap.classList.toggle('hidden', !isBusy);
@@ -718,7 +717,6 @@
       drawImageToCanvas();
       drawCircles(circlesState);
       els.count.textContent = String(circlesState.length);
-      if (els.clearCirclesBtn) els.clearCirclesBtn.disabled = circlesState.length === 0;
     }
 
     function drawImageToCanvas() {
@@ -1290,7 +1288,6 @@
           els.detectBtn.disabled = !opencvReady;
           if (els.editBtn) els.editBtn.disabled = false;
           els.resetBtn.disabled = false;
-          if (els.clearCirclesBtn) els.clearCirclesBtn.disabled = true;
           els.downloadBtn.disabled = false;
           setBusy(false);
         };
@@ -1333,9 +1330,6 @@
         });
       }
       els.resetBtn.addEventListener('click', resetOutput);
-      if (els.clearCirclesBtn) {
-        els.clearCirclesBtn.addEventListener('click', clearCircles);
-      }
       els.downloadBtn.addEventListener('click', downloadCanvas);
 
       els.canvas.addEventListener('pointerdown', (ev) => {
