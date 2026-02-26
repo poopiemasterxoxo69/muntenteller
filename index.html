@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="nl">
 <head>
@@ -241,7 +240,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)voo2</h1>
+      <h1>Munten Teller (foto)v2</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -793,43 +792,41 @@
       return circles;
     }
 
-    function consensusCircles(houghCircles, contourCircles) {
-      if (!houghCircles || houghCircles.length === 0) return [];
-      if (!contourCircles || contourCircles.length === 0) return [];
-
-      const used = new Set();
-      const out = [];
-
-      for (const h of houghCircles) {
-        let bestIdx = -1;
-        let bestScore = Infinity;
-        for (let i = 0; i < contourCircles.length; i++) {
-          if (used.has(i)) continue;
-          const c = contourCircles[i];
-          const dx = h.x - c.x;
-          const dy = h.y - c.y;
+    function mergeCircles(houghCircles, contourCircles) {
+      // FIXED: Changed from strict consensus to union (OR) logic
+      // This allows circles found by EITHER method to be counted
+      if (!houghCircles) houghCircles = [];
+      if (!contourCircles) contourCircles = [];
+      
+      if (houghCircles.length === 0 && contourCircles.length === 0) return [];
+      
+      // Start with all Hough circles
+      const merged = [...houghCircles];
+      
+      // For each contour circle, check if it's already represented in merged
+      for (const c of contourCircles) {
+        let found = false;
+        for (const m of merged) {
+          const dx = c.x - m.x;
+          const dy = c.y - m.y;
           const d = Math.hypot(dx, dy);
-          const rMin = Math.min(h.r, c.r);
-          const rMax = Math.max(h.r, c.r);
+          const rMin = Math.min(c.r, m.r);
+          const rMax = Math.max(c.r, m.r);
           const rRatio = rMax / Math.max(1, rMin);
-          const maxD = Math.max(6, 0.22 * rMin);
-          if (d > maxD) continue;
-          if (rRatio > 1.35) continue;
-
-          const score = d + (rRatio - 1) * 10;
-          if (score < bestScore) {
-            bestScore = score;
-            bestIdx = i;
+          
+          // If circles are close and similar size, consider them the same
+          if (d <= Math.max(6, 0.22 * rMin) && rRatio <= 1.35) {
+            found = true;
+            break;
           }
         }
-
-        if (bestIdx >= 0) {
-          used.add(bestIdx);
-          out.push(h);
+        // Add contour circle if it wasn't already found
+        if (!found) {
+          merged.push(c);
         }
       }
-
-      return out;
+      
+      return dedupeCircles(merged);
     }
 
     async function detectCoins() {
@@ -893,7 +890,7 @@
           afterEdge: 0,
           afterDedupe1: 0,
           contour: 0,
-          consensus: 0,
+          merged: 0,
           final: 0,
         };
 
@@ -927,26 +924,24 @@
 
         stats.afterDedupe1 = out.length;
 
-        // When white background mode is enabled, make both Hough and Contour detections "leading"
-        // by taking the union (OR) of both result sets. Otherwise keep existing consensus behaviour.
+        // FIXED: Use union (merge) instead of strict consensus
         let contourOut = [];
         if (!strictOn) {
           contourOut = dedupeCircles(findContourCircles(blurred, minRadius, maxRadius));
           stats.contour = contourOut.length;
-          if (els.whiteMode && els.whiteMode.checked) {
-            // union Hough + Contour
-            out = dedupeCircles(out.concat(contourOut));
-          } else {
-            const consensusOut = consensusCircles(out, contourOut);
-            stats.consensus = consensusOut.length;
-            out = consensusOut;
-          }
+          
+          // Changed: Always merge results (union) instead of consensus
+          const mergedOut = mergeCircles(out, contourOut);
+          stats.merged = mergedOut.length;
+          out = mergedOut;
         } else {
           // strictOn: normally only Hough is used; if whiteMode is enabled, also include contours (union)
           if (els.whiteMode && els.whiteMode.checked) {
             contourOut = dedupeCircles(findContourCircles(blurred, useMinRadius, useMaxRadius));
             stats.contour = contourOut.length;
-            out = dedupeCircles(out.concat(contourOut));
+            const mergedOut = mergeCircles(out, contourOut);
+            stats.merged = mergedOut.length;
+            out = mergedOut;
           }
         }
 
@@ -973,7 +968,7 @@
           if (strictOn) {
             els.techStats.textContent = `Techniek: Streng (Hough). Hough: ${stats.houghRaw} → edge: ${stats.afterEdge} → dedupe: ${stats.afterDedupe1} → eind: ${stats.final}`;
           } else {
-            els.techStats.textContent = `Techniek: Hough + Contour consensus. Hough: ${stats.houghRaw} → edge: ${stats.afterEdge} → dedupe: ${stats.afterDedupe1} | contour: ${stats.contour} → consensus: ${stats.consensus} → eind: ${stats.final}`;
+            els.techStats.textContent = `Techniek: Hough + Contour (UNION). Hough: ${stats.houghRaw} → edge: ${stats.afterEdge} → dedupe: ${stats.afterDedupe1} | contour: ${stats.contour} → merged: ${stats.merged} → eind: ${stats.final}`;
           }
         }
         if (out.length === 0) {
@@ -1053,7 +1048,7 @@
         sourceImg.onerror = () => {
           URL.revokeObjectURL(url);
           imageLoaded = false;
-          els.msg.innerHTML = '<span class="err">Kon deze afbeelding niet laden.</span> Als dit een HEIC foto is: probeer opnieuw na een paar seconden (converter laden), of zet je iPhone camera op “Meest compatibel”.';
+          els.msg.innerHTML = '<span class="err">Kon deze afbeelding niet laden.</span> Als dit een HEIC foto is: probeer opnieuw na een paar seconden (converter laden), of zet je iPhone camera op "Meest compatibel".';
           setBusy(false);
         };
         sourceImg.src = url;
