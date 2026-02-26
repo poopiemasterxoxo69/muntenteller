@@ -235,12 +235,64 @@
       color: var(--muted);
       line-height: 1.35;
     }
+
+    /* coin calculator panel */
+    .coinPanel {
+      margin-top: 24px;
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    .coinPanel h2 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+    }
+    .coins {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .coin {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .coin img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .coin:hover {
+      background: rgba(122,162,255,0.12);
+    }
+    .coin.total {
+      cursor: default;
+      border-color: transparent;
+      background: transparent;
+      font-size: 15px;
+      margin-left: 20px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v2</h1>
+      <h1>Munten Teller (foto)v25</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -352,6 +404,20 @@
         </div>
       </section>
     </div>
+
+    <!-- handmatige munten calculator -->
+    <div class="coinPanel">
+      <h2>Handmatige berekening</h2>
+      <div class="coins">
+        <div class="coin" data-value="0.05"><img src="img/5-cent.png" alt="5 cent"></div>
+        <div class="coin" data-value="0.10"><img src="img/10-cent.png" alt="10 cent"></div>
+        <div class="coin" data-value="0.20"><img src="img/20-cent.png" alt="20 cent"></div>
+        <div class="coin" data-value="0.50"><img src="img/50-cent.png" alt="50 cent"></div>
+        <div class="coin" data-value="1.00"><img src="img/1-euro.png" alt="1 euro"></div>
+        <div class="coin" data-value="2.00"><img src="img/2-euro.png" alt="2 euro"></div>
+        <div class="coin total">Totaal: €<span id="coinTotal">0.00</span></div>
+      </div>
+    </div>
   </div>
 
   <script async src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript"></script>
@@ -433,6 +499,7 @@
     let busy = false;
     let editMode = false;
     let circlesState = [];
+    let coinTotal = 0;
 
     function setCvStatus(kind, text) {
       els.cvDot.classList.remove('ok', 'busy', 'bad');
@@ -472,6 +539,9 @@
       els.msg.textContent = '';
       if (els.techStats) els.techStats.textContent = '';
       circlesState = [];
+      coinTotal = 0;
+      const coinTotalEl = document.getElementById('coinTotal');
+      if (coinTotalEl) coinTotalEl.textContent = '0.00';
       if (imageLoaded) {
         drawImageToCanvas();
       } else {
@@ -524,6 +594,15 @@
       for (let i = 0; i < circles.length; i++) {
         const c = circles[i];
         const n = i + 1;
+        // use a different color for user-added circles
+        if (c.manual) {
+          ctx.strokeStyle = 'rgba(122, 162, 255, 0.95)';
+          ctx.fillStyle = 'rgba(122, 162, 255, 0.40)';
+        } else {
+          ctx.strokeStyle = 'rgba(255, 230, 109, 0.95)';
+          ctx.fillStyle = 'rgba(122, 162, 255, 0.95)';
+        }
+        ctx.lineWidth = Math.max(2, Math.round(Math.min(els.canvas.width, els.canvas.height) / 350));
         ctx.beginPath();
         ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
         ctx.stroke();
@@ -552,9 +631,10 @@
         ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
         ctx.fillText(label, bx + padX, by + boxH / 2);
 
+        // restore default styles for next iteration
         ctx.strokeStyle = 'rgba(255, 230, 109, 0.95)';
-        ctx.lineWidth = Math.max(2, Math.round(Math.min(els.canvas.width, els.canvas.height) / 350));
         ctx.fillStyle = 'rgba(122, 162, 255, 0.95)';
+        ctx.lineWidth = Math.max(2, Math.round(Math.min(els.canvas.width, els.canvas.height) / 350));
       }
 
       ctx.restore();
@@ -566,7 +646,7 @@
         els.editBtn.textContent = editMode ? 'Bewerken: aan' : 'Bewerken: uit';
         els.editBtn.classList.toggle('active', editMode);
       }
-      els.msg.textContent = editMode ? 'Bewerken aan: tik op een cirkel om te verwijderen. Tik op lege plek om toe te voegen.' : '';
+      els.msg.textContent = editMode ? 'Bewerken aan: tik op een cirkel om te verwijderen. Tik op lege plek om toe te voegen (handmatig toegevoegde cirkels verschijnen blauw).' : '';
     }
 
     function getCanvasPointFromEvent(ev) {
@@ -614,6 +694,8 @@
           const similarSize = (rMax / Math.max(1, rMin)) < 1.25;
           const veryClose = d < (0.35 * rMin);
           if (similarSize && veryClose) {
+            // if the incoming circle was manual, propagate that flag to the kept circle
+            if (c.manual) k.manual = true;
             ok = false;
             break;
           }
@@ -1096,11 +1178,25 @@
           circlesState.splice(idx, 1);
         } else {
           const r = medianRadius();
-          circlesState.push({ x: pt.x, y: pt.y, r });
+          circlesState.push({ x: pt.x, y: pt.y, r, manual: true });
         }
         circlesState = dedupeCircles(circlesState);
         render();
       }, { passive: false });
+
+      // coin calculator listeners
+      {
+        const coinEls = document.querySelectorAll('.coin[data-value]');
+        coinEls.forEach((el) => {
+          el.addEventListener('click', () => {
+            const v = parseFloat(el.dataset.value);
+            if (Number.isFinite(v)) {
+              coinTotal += v;
+              document.getElementById('coinTotal').textContent = coinTotal.toFixed(2);
+            }
+          });
+        });
+      }
     }
 
     wireEvents();
