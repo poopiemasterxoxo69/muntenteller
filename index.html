@@ -236,7 +236,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v4</h1>
+      <h1>Munten Teller (foto)v5</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -569,6 +569,97 @@
       return out;
     }
 
+    function findContourCircles(gray, minRadius, maxRadius) {
+      const bin = new cv.Mat();
+      cv.adaptiveThreshold(gray, bin, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 31, 2);
+
+      const kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(3, 3));
+      const morphed = new cv.Mat();
+      cv.morphologyEx(bin, morphed, cv.MORPH_OPEN, kernel);
+      cv.morphologyEx(morphed, morphed, cv.MORPH_CLOSE, kernel);
+
+      const contours = new cv.MatVector();
+      const hierarchy = new cv.Mat();
+      cv.findContours(morphed, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+      const circles = [];
+      const rMin = Math.max(0, minRadius);
+      const rMax = maxRadius > 0 ? maxRadius : Math.min(gray.cols, gray.rows);
+
+      for (let i = 0; i < contours.size(); i++) {
+        const cnt = contours.get(i);
+        const area = cv.contourArea(cnt);
+        const perim = cv.arcLength(cnt, true);
+        if (!Number.isFinite(area) || !Number.isFinite(perim) || perim <= 0) {
+          cnt.delete();
+          continue;
+        }
+
+        const circularity = (4 * Math.PI * area) / (perim * perim);
+        if (circularity < 0.62) {
+          cnt.delete();
+          continue;
+        }
+
+        const circle = cv.minEnclosingCircle(cnt);
+        const x = circle.center.x;
+        const y = circle.center.y;
+        const r = circle.radius;
+
+        if (r >= rMin && r <= rMax && Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(r)) {
+          circles.push({ x, y, r });
+        }
+        cnt.delete();
+      }
+
+      bin.delete();
+      kernel.delete();
+      morphed.delete();
+      contours.delete();
+      hierarchy.delete();
+
+      return circles;
+    }
+
+    function consensusCircles(houghCircles, contourCircles) {
+      if (!houghCircles || houghCircles.length === 0) return [];
+      if (!contourCircles || contourCircles.length === 0) return [];
+
+      const used = new Set();
+      const out = [];
+
+      for (const h of houghCircles) {
+        let bestIdx = -1;
+        let bestScore = Infinity;
+        for (let i = 0; i < contourCircles.length; i++) {
+          if (used.has(i)) continue;
+          const c = contourCircles[i];
+          const dx = h.x - c.x;
+          const dy = h.y - c.y;
+          const d = Math.hypot(dx, dy);
+          const rMin = Math.min(h.r, c.r);
+          const rMax = Math.max(h.r, c.r);
+          const rRatio = rMax / Math.max(1, rMin);
+          const maxD = Math.max(6, 0.22 * rMin);
+          if (d > maxD) continue;
+          if (rRatio > 1.35) continue;
+
+          const score = d + (rRatio - 1) * 10;
+          if (score < bestScore) {
+            bestScore = score;
+            bestIdx = i;
+          }
+        }
+
+        if (bestIdx >= 0) {
+          used.add(bestIdx);
+          out.push(h);
+        }
+      }
+
+      return out;
+    }
+
     async function detectCoins() {
       if (!opencvReady || !imageLoaded || busy) return;
       setBusy(true);
@@ -629,6 +720,10 @@
           minRatio: 0.17,
           minHits: 8,
         });
+        out = dedupeCircles(out);
+
+        const contourOut = dedupeCircles(findContourCircles(blurred, minRadius, maxRadius));
+        out = consensusCircles(out, contourOut);
         out = dedupeCircles(out);
 
         src.delete();
