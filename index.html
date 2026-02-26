@@ -483,7 +483,9 @@
       <section class="card">
         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 14px;">
           <h2 style="margin: 0; flex: 1;">Resultaat</h2>
+          <button id="undoBtn" disabled style="padding: 8px 12px; font-size: 12px;">Undo</button>
           <button id="editBtn" disabled style="padding: 8px 12px; font-size: 12px;">Bewerken: uit</button>
+          <button id="resetBtn" disabled style="padding: 8px 12px; font-size: 12px;">Reset</button>
         </div>
         <div class="canvasWrap">
           <canvas id="canvas"></canvas>
@@ -610,6 +612,7 @@
       canvas: document.getElementById('canvas'),
       detectBtn: document.getElementById('detectBtn'),
       editBtn: document.getElementById('editBtn'),
+      undoBtn: document.getElementById('undoBtn'),
       resetBtn: document.getElementById('resetBtn'),
       downloadBtn: document.getElementById('downloadBtn'),
       count: document.getElementById('count'),
@@ -652,6 +655,7 @@
     let busy = false;
     let editMode = false;
     let circlesState = [];
+    let circlesHistory = [];
     let coinTotal = 0;
 
     function setCvStatus(kind, text) {
@@ -666,12 +670,25 @@
       busy = isBusy;
       els.detectBtn.disabled = !opencvReady || !imageLoaded || busy;
       els.resetBtn.disabled = !imageLoaded || busy;
+      els.undoBtn.disabled = !imageLoaded || busy || circlesHistory.length === 0;
       els.downloadBtn.disabled = !imageLoaded || busy;
       if (els.progressWrap) {
         els.progressWrap.classList.toggle('hidden', !isBusy);
       }
       if (isBusy) setCvStatus('busy', 'Bezig met detecteren…');
       else setCvStatus(opencvReady ? 'ok' : 'busy', opencvReady ? 'OpenCV klaar' : 'OpenCV laden…');
+    }
+
+    function saveHistory() {
+      circlesHistory.push(JSON.parse(JSON.stringify(circlesState)));
+      els.undoBtn.disabled = false;
+    }
+
+    function undo() {
+      if (circlesHistory.length === 0) return;
+      circlesState = circlesHistory.pop();
+      els.undoBtn.disabled = circlesHistory.length === 0;
+      render();
     }
 
     function updateLabels() {
@@ -692,7 +709,9 @@
       els.msg.textContent = '';
       if (els.techStats) els.techStats.textContent = '';
       circlesState = [];
+      circlesHistory = [];
       coinTotal = 0;
+      els.undoBtn.disabled = true;
       const coinTotalEl = document.getElementById('coinTotal');
       if (coinTotalEl) coinTotalEl.textContent = '0.00';
       const barcodeCanvas = document.getElementById('coinBarcodeCanvas');
@@ -1273,6 +1292,7 @@
       imageLoaded = false;
       els.detectBtn.disabled = true;
       els.resetBtn.disabled = true;
+      els.undoBtn.disabled = true;
       els.downloadBtn.disabled = true;
 
       let url = '';
@@ -1330,11 +1350,15 @@
         });
       }
       els.resetBtn.addEventListener('click', resetOutput);
+      if (els.undoBtn) {
+        els.undoBtn.addEventListener('click', undo);
+      }
       els.downloadBtn.addEventListener('click', downloadCanvas);
 
       els.canvas.addEventListener('pointerdown', (ev) => {
         if (!editMode || busy || !imageLoaded) return;
         ev.preventDefault();
+        saveHistory();
         const pt = getCanvasPointFromEvent(ev);
         const idx = findHitCircleIndex(pt);
         if (idx >= 0) {
