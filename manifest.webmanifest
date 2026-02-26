@@ -1,7 +1,7 @@
 {
   "name": "Munten Teller",
   "short_name": "Munten",
-  "start_url": "./muntenteller.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0b1220",

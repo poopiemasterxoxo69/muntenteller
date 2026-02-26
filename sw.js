@@ -2,7 +2,7 @@ const CACHE_NAME = 'munten-teller-v1';
 
 const CORE_ASSETS = [
   './',
-  './muntenteller.html',
+  './index.html',
   './manifest.webmanifest',
   './icon.svg',
 ];
