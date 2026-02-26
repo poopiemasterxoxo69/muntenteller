@@ -179,6 +179,11 @@
       border-color: rgba(122, 162, 255, 0.35);
     }
 
+    button.active {
+      background: linear-gradient(180deg, rgba(56, 211, 159, 0.28), rgba(56, 211, 159, 0.10));
+      border-color: rgba(56, 211, 159, 0.35);
+    }
+
     button:disabled {
       cursor: not-allowed;
       opacity: 0.6;
@@ -236,7 +241,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v15</h1>
+      <h1>Munten Teller (foto)v6</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -252,6 +257,7 @@
 
           <div class="btns">
             <button id="detectBtn" class="primary" disabled>Detecteer & tel</button>
+            <button id="editBtn" disabled>Bewerken: uit</button>
             <button id="resetBtn" disabled>Reset</button>
             <button id="downloadBtn" disabled>Download resultaat</button>
           </div>
@@ -341,6 +347,7 @@
       fileInput: document.getElementById('fileInput'),
       canvas: document.getElementById('canvas'),
       detectBtn: document.getElementById('detectBtn'),
+      editBtn: document.getElementById('editBtn'),
       resetBtn: document.getElementById('resetBtn'),
       downloadBtn: document.getElementById('downloadBtn'),
       count: document.getElementById('count'),
@@ -373,6 +380,8 @@
     let imageLoaded = false;
     let opencvReady = false;
     let busy = false;
+    let editMode = false;
+    let circlesState = [];
 
     function setCvStatus(kind, text) {
       els.cvDot.classList.remove('ok', 'busy', 'bad');
@@ -408,11 +417,19 @@
     function resetOutput() {
       els.count.textContent = '0';
       els.msg.textContent = '';
+      circlesState = [];
       if (imageLoaded) {
         drawImageToCanvas();
       } else {
         ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
       }
+    }
+
+    function render() {
+      if (!imageLoaded) return;
+      drawImageToCanvas();
+      drawCircles(circlesState);
+      els.count.textContent = String(circlesState.length);
     }
 
     function drawImageToCanvas() {
@@ -487,6 +504,40 @@
       }
 
       ctx.restore();
+    }
+
+    function setEditMode(on) {
+      editMode = !!on;
+      if (els.editBtn) {
+        els.editBtn.textContent = editMode ? 'Bewerken: aan' : 'Bewerken: uit';
+        els.editBtn.classList.toggle('active', editMode);
+      }
+      els.msg.textContent = editMode ? 'Bewerken aan: tik op een cirkel om te verwijderen. Tik op lege plek om toe te voegen.' : '';
+    }
+
+    function getCanvasPointFromEvent(ev) {
+      const rect = els.canvas.getBoundingClientRect();
+      const x = (ev.clientX - rect.left) * (els.canvas.width / rect.width);
+      const y = (ev.clientY - rect.top) * (els.canvas.height / rect.height);
+      return { x, y };
+    }
+
+    function medianRadius() {
+      if (!circlesState || circlesState.length === 0) return Math.max(20, Number(els.minRadius && els.minRadius.value ? els.minRadius.value : 30));
+      const rs = circlesState.map((c) => c.r).filter((r) => Number.isFinite(r)).sort((a, b) => a - b);
+      return rs[Math.floor(rs.length / 2)] || Math.max(20, Number(els.minRadius && els.minRadius.value ? els.minRadius.value : 30));
+    }
+
+    function findHitCircleIndex(pt) {
+      const tol = Math.max(10, Math.min(22, medianRadius() * 0.25));
+      for (let i = 0; i < circlesState.length; i++) {
+        const c = circlesState[i];
+        const dx = pt.x - c.x;
+        const dy = pt.y - c.y;
+        const d = Math.hypot(dx, dy);
+        if (d <= c.r + tol) return i;
+      }
+      return -1;
     }
 
     function nextFrame() {
@@ -664,6 +715,7 @@
       if (!opencvReady || !imageLoaded || busy) return;
       setBusy(true);
       resetOutput();
+      setEditMode(false);
 
       await nextFrame();
 
@@ -732,10 +784,8 @@
         edges.delete();
         circles.delete();
 
-        drawImageToCanvas();
-        drawCircles(out);
-
-        els.count.textContent = String(out.length);
+        circlesState = out;
+        render();
         if (out.length === 0) {
           els.msg.textContent = 'Geen munten gevonden met deze instellingen. Probeer param2 lager, of radius/minDist aanpassen.';
         } else {
@@ -805,6 +855,7 @@
           drawImageToCanvas();
           resetOutput();
           els.detectBtn.disabled = !opencvReady;
+          if (els.editBtn) els.editBtn.disabled = false;
           els.resetBtn.disabled = false;
           els.downloadBtn.disabled = false;
           setBusy(false);
@@ -830,7 +881,7 @@
         els[id].addEventListener('input', () => {
           updateLabels();
           if (imageLoaded) {
-            drawImageToCanvas();
+            render();
           }
         });
       }
@@ -841,8 +892,29 @@
       });
 
       els.detectBtn.addEventListener('click', detectCoins);
+      if (els.editBtn) {
+        els.editBtn.addEventListener('click', () => {
+          if (!imageLoaded || busy) return;
+          setEditMode(!editMode);
+        });
+      }
       els.resetBtn.addEventListener('click', resetOutput);
       els.downloadBtn.addEventListener('click', downloadCanvas);
+
+      els.canvas.addEventListener('pointerdown', (ev) => {
+        if (!editMode || busy || !imageLoaded) return;
+        ev.preventDefault();
+        const pt = getCanvasPointFromEvent(ev);
+        const idx = findHitCircleIndex(pt);
+        if (idx >= 0) {
+          circlesState.splice(idx, 1);
+        } else {
+          const r = medianRadius();
+          circlesState.push({ x: pt.x, y: pt.y, r });
+        }
+        circlesState = dedupeCircles(circlesState);
+        render();
+      }, { passive: false });
     }
 
     wireEvents();
