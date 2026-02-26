@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <title>Icon Generator</title>
+</head>
+<body>
+  <canvas id="canvas" width="192" height="192"></canvas>
+  <p><a href="#" id="downloadLink">Klik hier om icon.png te downloaden</a></p>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    const gradient = ctx.createRadialGradient(96, 96, 20, 96, 96, 192);
+    gradient.addColorStop(0, '#0b1220');
+    gradient.addColorStop(1, '#050a12');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 192, 192);
+
+    // Munt cirkel
+    const coinGradient = ctx.createRadialGradient(96, 80, 20, 96, 80, 70);
+    coinGradient.addColorStop(0, '#ffe66d');
+    coinGradient.addColorStop(0.5, '#f4c542');
+    coinGradient.addColorStop(1, '#b07a1a');
+    
+    ctx.fillStyle = coinGradient;
+    ctx.beginPath();
+    ctx.arc(96, 80, 70, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Munt rim
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(96, 80, 70, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Muntdetails
+    ctx.strokeStyle = 'rgba(11, 18, 32, 0.4)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(96, 80, 52, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Ogen
+    ctx.fillStyle = 'rgba(11, 18, 32, 0.6)';
+    ctx.beginPath();
+    ctx.arc(80, 65, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(112, 65, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glimlach
+    ctx.strokeStyle = 'rgba(11, 18, 32, 0.7)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(96, 90, 18, 0, Math.PI);
+    ctx.stroke();
+
+    // Download
+    document.getElementById('downloadLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'icon.png';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    });
+  </script>
+</body>
+</html>
