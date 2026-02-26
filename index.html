@@ -1,0 +1,641 @@
+
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Munten Teller</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #0f1b33;
+      --text: #e6edf7;
+      --muted: #a7b4cb;
+      --accent: #7aa2ff;
+      --danger: #ff6b6b;
+      --border: rgba(255, 255, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(122, 162, 255, 0.18), transparent 60%),
+                  radial-gradient(900px 500px at 100% 30%, rgba(255, 107, 107, 0.10), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0.2px;
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 55%),
+                  var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.30);
+    }
+
+    .card h2 {
+      font-size: 14px;
+      margin: 0 0 10px 0;
+      color: var(--muted);
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+
+    .row { display: grid; gap: 10px; }
+    .control {
+      display: grid;
+      gap: 6px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(0,0,0,0.12);
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    label span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    input[type="range"] { width: 100%; }
+    input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.18);
+      color: var(--muted);
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .progressWrap {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(0,0,0,0.12);
+    }
+
+    .bar {
+      position: relative;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.18);
+    }
+
+    .bar > .fill {
+      position: absolute;
+      inset: 0;
+      width: 35%;
+      background: linear-gradient(90deg, transparent, rgba(122, 162, 255, 0.55), transparent);
+      transform: translateX(-60%);
+      animation: slide 1.1s linear infinite;
+    }
+
+    @keyframes slide {
+      0% { transform: translateX(-60%); }
+      100% { transform: translateX(260%); }
+    }
+
+    .hidden { display: none !important; }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: rgba(122, 162, 255, 0.12);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    button.primary {
+      background: linear-gradient(180deg, rgba(122, 162, 255, 0.30), rgba(122, 162, 255, 0.12));
+      border-color: rgba(122, 162, 255, 0.35);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .status strong { color: var(--text); }
+    .status .err { color: var(--danger); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.18);
+      border: 1px solid var(--border);
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 99px;
+      background: #888;
+    }
+
+    .dot.ok { background: #38d39f; }
+    .dot.busy { background: #ffd166; }
+    .dot.bad { background: #ff6b6b; }
+
+    .canvasWrap {
+      display: grid;
+      gap: 12px;
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.20);
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Munten Teller (foto)</h1>
+      <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Instellingen</h2>
+
+        <div class="row">
+          <div class="control">
+            <label for="fileInput">Foto</label>
+            <input id="fileInput" type="file" accept="image/*" />
+          </div>
+
+          <div class="btns">
+            <button id="detectBtn" class="primary" disabled>Detecteer & tel</button>
+            <button id="resetBtn" disabled>Reset</button>
+            <button id="downloadBtn" disabled>Download resultaat</button>
+          </div>
+
+          <div id="progressWrap" class="progressWrap hidden">
+            <div class="bar"><div class="fill"></div></div>
+            <div class="hint">Bezig met tellen…</div>
+          </div>
+
+          <details class="control" style="padding: 0; overflow: hidden;">
+            <summary style="list-style: none; cursor: pointer; padding: 10px;">Geavanceerde instellingen</summary>
+            <div style="padding: 10px; display: grid; gap: 10px;">
+              <div class="control">
+                <label for="resizeMax">Max breedte voor analyse <span id="resizeMaxVal">1200</span> px</label>
+                <input id="resizeMax" type="range" min="600" max="2200" step="50" value="1200" />
+              </div>
+
+              <div class="control">
+                <label for="blur">Blur <span id="blurVal">9</span></label>
+                <input id="blur" type="range" min="1" max="31" step="2" value="9" />
+              </div>
+
+              <div class="control">
+                <label for="dp">dp (Hough) <span id="dpVal">1.2</span></label>
+                <input id="dp" type="range" min="10" max="30" step="1" value="12" />
+              </div>
+
+              <div class="control">
+                <label for="minDist">Min afstand tussen munten <span id="minDistVal">30</span></label>
+                <input id="minDist" type="range" min="5" max="140" step="1" value="30" />
+              </div>
+
+              <div class="control">
+                <label for="param1">Edge threshold (param1) <span id="param1Val">140</span></label>
+                <input id="param1" type="range" min="30" max="250" step="1" value="140" />
+              </div>
+
+              <div class="control">
+                <label for="param2">Detectie gevoeligheid (param2) <span id="param2Val">38</span></label>
+                <input id="param2" type="range" min="10" max="120" step="1" value="38" />
+              </div>
+
+              <div class="control">
+                <label for="minRadius">Min radius <span id="minRadiusVal">18</span></label>
+                <input id="minRadius" type="range" min="0" max="200" step="1" value="18" />
+              </div>
+
+              <div class="control">
+                <label for="maxRadius">Max radius <span id="maxRadiusVal">120</span></label>
+                <input id="maxRadius" type="range" min="0" max="400" step="1" value="120" />
+              </div>
+            </div>
+          </details>
+
+          <div class="status">
+            <div class="pill"><span id="cvDot" class="dot"></span><span id="cvStatus">OpenCV laden…</span></div>
+            <div style="margin-top:10px;">
+              <strong>Gevonden munten:</strong> <span id="count">0</span>
+            </div>
+            <div id="msg" class="hint" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Resultaat</h2>
+        <div class="canvasWrap">
+          <canvas id="canvas"></canvas>
+          <div class="hint">
+            Tips: gebruik een foto met goed contrast, munten zo min mogelijk overlappend, en liefst zonder zware reflecties. Als er te veel/te weinig wordt gevonden: pas vooral <strong>param2</strong>, <strong>minDist</strong> en <strong>min/max radius</strong> aan.
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script async src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript"></script>
+  <script>
+    const els = {
+      fileInput: document.getElementById('fileInput'),
+      canvas: document.getElementById('canvas'),
+      detectBtn: document.getElementById('detectBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      downloadBtn: document.getElementById('downloadBtn'),
+      count: document.getElementById('count'),
+      msg: document.getElementById('msg'),
+      cvDot: document.getElementById('cvDot'),
+      cvStatus: document.getElementById('cvStatus'),
+      progressWrap: document.getElementById('progressWrap'),
+
+      resizeMax: document.getElementById('resizeMax'),
+      blur: document.getElementById('blur'),
+      dp: document.getElementById('dp'),
+      minDist: document.getElementById('minDist'),
+      param1: document.getElementById('param1'),
+      param2: document.getElementById('param2'),
+      minRadius: document.getElementById('minRadius'),
+      maxRadius: document.getElementById('maxRadius'),
+
+      resizeMaxVal: document.getElementById('resizeMaxVal'),
+      blurVal: document.getElementById('blurVal'),
+      dpVal: document.getElementById('dpVal'),
+      minDistVal: document.getElementById('minDistVal'),
+      param1Val: document.getElementById('param1Val'),
+      param2Val: document.getElementById('param2Val'),
+      minRadiusVal: document.getElementById('minRadiusVal'),
+      maxRadiusVal: document.getElementById('maxRadiusVal'),
+    };
+
+    const ctx = els.canvas.getContext('2d', { willReadFrequently: true });
+    let sourceImg = new Image();
+    let imageLoaded = false;
+    let opencvReady = false;
+    let busy = false;
+
+    function setCvStatus(kind, text) {
+      els.cvDot.classList.remove('ok', 'busy', 'bad');
+      if (kind === 'ok') els.cvDot.classList.add('ok');
+      if (kind === 'busy') els.cvDot.classList.add('busy');
+      if (kind === 'bad') els.cvDot.classList.add('bad');
+      els.cvStatus.textContent = text;
+    }
+
+    function setBusy(isBusy) {
+      busy = isBusy;
+      els.detectBtn.disabled = !opencvReady || !imageLoaded || busy;
+      els.resetBtn.disabled = !imageLoaded || busy;
+      els.downloadBtn.disabled = !imageLoaded || busy;
+      if (els.progressWrap) {
+        els.progressWrap.classList.toggle('hidden', !isBusy);
+      }
+      if (isBusy) setCvStatus('busy', 'Bezig met detecteren…');
+      else setCvStatus(opencvReady ? 'ok' : 'busy', opencvReady ? 'OpenCV klaar' : 'OpenCV laden…');
+    }
+
+    function updateLabels() {
+      els.resizeMaxVal.textContent = String(els.resizeMax.value);
+      els.blurVal.textContent = String(els.blur.value);
+      els.dpVal.textContent = (Number(els.dp.value) / 10).toFixed(1);
+      els.minDistVal.textContent = String(els.minDist.value);
+      els.param1Val.textContent = String(els.param1.value);
+      els.param2Val.textContent = String(els.param2.value);
+      els.minRadiusVal.textContent = String(els.minRadius.value);
+      els.maxRadiusVal.textContent = String(els.maxRadius.value);
+    }
+
+    function resetOutput() {
+      els.count.textContent = '0';
+      els.msg.textContent = '';
+      if (imageLoaded) {
+        drawImageToCanvas();
+      } else {
+        ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+      }
+    }
+
+    function drawImageToCanvas() {
+      const maxW = Number(els.resizeMax.value);
+      const scale = Math.min(1, maxW / sourceImg.naturalWidth);
+      const w = Math.max(1, Math.round(sourceImg.naturalWidth * scale));
+      const h = Math.max(1, Math.round(sourceImg.naturalHeight * scale));
+      els.canvas.width = w;
+      els.canvas.height = h;
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(sourceImg, 0, 0, w, h);
+    }
+
+    function getParams() {
+      const blurK = Number(els.blur.value);
+      const dp = Number(els.dp.value) / 10;
+      const minDist = Number(els.minDist.value);
+      const param1 = Number(els.param1.value);
+      const param2 = Number(els.param2.value);
+      const minRadius = Number(els.minRadius.value);
+      const maxRadius = Number(els.maxRadius.value);
+
+      return { blurK, dp, minDist, param1, param2, minRadius, maxRadius };
+    }
+
+    function drawCircles(circles) {
+      if (!circles || circles.length === 0) return;
+
+      ctx.save();
+      ctx.lineWidth = Math.max(2, Math.round(Math.min(els.canvas.width, els.canvas.height) / 350));
+      ctx.strokeStyle = 'rgba(255, 230, 109, 0.95)';
+      ctx.fillStyle = 'rgba(122, 162, 255, 0.95)';
+
+      const fontSize = Math.max(12, Math.round(Math.min(els.canvas.width, els.canvas.height) / 40));
+      ctx.font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.textBaseline = 'middle';
+
+      for (let i = 0; i < circles.length; i++) {
+        const c = circles[i];
+        const n = i + 1;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, Math.max(2, ctx.lineWidth + 1), 0, Math.PI * 2);
+        ctx.fill();
+
+        const label = String(n);
+        const padX = Math.max(6, Math.round(fontSize * 0.35));
+        const padY = Math.max(4, Math.round(fontSize * 0.22));
+        const metrics = ctx.measureText(label);
+        const boxW = metrics.width + padX * 2;
+        const boxH = fontSize + padY * 2;
+        const bx = Math.max(0, Math.min(els.canvas.width - boxW, c.x - boxW / 2));
+        const by = Math.max(0, Math.min(els.canvas.height - boxH, c.y - boxH / 2));
+
+        ctx.fillStyle = 'rgba(11, 18, 32, 0.80)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, boxW, boxH, Math.max(6, Math.round(boxH / 3)));
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
+        ctx.fillText(label, bx + padX, by + boxH / 2);
+
+        ctx.strokeStyle = 'rgba(255, 230, 109, 0.95)';
+        ctx.lineWidth = Math.max(2, Math.round(Math.min(els.canvas.width, els.canvas.height) / 350));
+        ctx.fillStyle = 'rgba(122, 162, 255, 0.95)';
+      }
+
+      ctx.restore();
+    }
+
+    function nextFrame() {
+      return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    }
+
+    async function detectCoins() {
+      if (!opencvReady || !imageLoaded || busy) return;
+      setBusy(true);
+      resetOutput();
+
+      await nextFrame();
+
+      const { blurK, dp, minDist, param1, param2, minRadius, maxRadius } = getParams();
+
+      if (maxRadius > 0 && minRadius > maxRadius) {
+        els.msg.innerHTML = '<span class="err">Min radius is groter dan max radius.</span>';
+        setBusy(false);
+        return;
+      }
+
+      try {
+        const src = cv.imread(els.canvas);
+        const gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+        const blurred = new cv.Mat();
+        const k = Math.max(1, blurK | 1);
+        cv.GaussianBlur(gray, blurred, new cv.Size(k, k), 0, 0, cv.BORDER_DEFAULT);
+
+        const circles = new cv.Mat();
+        cv.HoughCircles(
+          blurred,
+          circles,
+          cv.HOUGH_GRADIENT,
+          dp,
+          minDist,
+          param1,
+          param2,
+          minRadius,
+          maxRadius
+        );
+
+        let out = [];
+        if (!circles.empty()) {
+          for (let i = 0; i < circles.cols; i++) {
+            const x = circles.data32F[i * 3];
+            const y = circles.data32F[i * 3 + 1];
+            const r = circles.data32F[i * 3 + 2];
+            if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(r)) {
+              out.push({ x, y, r });
+            }
+          }
+        }
+
+        out.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+
+        src.delete();
+        gray.delete();
+        blurred.delete();
+        circles.delete();
+
+        drawImageToCanvas();
+        drawCircles(out);
+
+        els.count.textContent = String(out.length);
+        if (out.length === 0) {
+          els.msg.textContent = 'Geen munten gevonden met deze instellingen. Probeer param2 lager, of radius/minDist aanpassen.';
+        } else {
+          els.msg.textContent = 'Klaar.';
+        }
+      } catch (e) {
+        els.msg.innerHTML = '<span class="err">Fout tijdens detectie: </span>' + String(e && e.message ? e.message : e);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function downloadCanvas() {
+      if (!imageLoaded) return;
+      const link = document.createElement('a');
+      link.download = 'munten-resultaat.png';
+      link.href = els.canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function setImageFromFile(file) {
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      sourceImg = new Image();
+      sourceImg.onload = () => {
+        URL.revokeObjectURL(url);
+        imageLoaded = true;
+        drawImageToCanvas();
+        resetOutput();
+        els.detectBtn.disabled = !opencvReady;
+        els.resetBtn.disabled = false;
+        els.downloadBtn.disabled = false;
+      };
+      sourceImg.onerror = () => {
+        URL.revokeObjectURL(url);
+        imageLoaded = false;
+        els.msg.innerHTML = '<span class="err">Kon deze afbeelding niet laden.</span>';
+      };
+      sourceImg.src = url;
+    }
+
+    function wireEvents() {
+      updateLabels();
+      for (const id of ['resizeMax','blur','dp','minDist','param1','param2','minRadius','maxRadius']) {
+        els[id].addEventListener('input', () => {
+          updateLabels();
+          if (imageLoaded) {
+            drawImageToCanvas();
+          }
+        });
+      }
+
+      els.fileInput.addEventListener('change', (ev) => {
+        const file = ev.target.files && ev.target.files[0];
+        setImageFromFile(file);
+      });
+
+      els.detectBtn.addEventListener('click', detectCoins);
+      els.resetBtn.addEventListener('click', resetOutput);
+      els.downloadBtn.addEventListener('click', downloadCanvas);
+    }
+
+    wireEvents();
+
+    (function waitForOpenCV() {
+      const start = Date.now();
+      const maxWaitMs = 30000;
+
+      function tick() {
+        const elapsed = Date.now() - start;
+        if (typeof cv !== 'undefined' && cv && cv.Mat) {
+          if (cv['onRuntimeInitialized']) {
+            cv['onRuntimeInitialized'] = () => {
+              opencvReady = true;
+              setCvStatus('ok', 'OpenCV klaar');
+              els.detectBtn.disabled = !imageLoaded;
+            };
+          } else {
+            opencvReady = true;
+            setCvStatus('ok', 'OpenCV klaar');
+            els.detectBtn.disabled = !imageLoaded;
+          }
+          return;
+        }
+        if (elapsed > maxWaitMs) {
+          setCvStatus('bad', 'OpenCV laden mislukt');
+          els.msg.innerHTML = '<span class="err">OpenCV.js kon niet geladen worden.</span> Controleer je internetverbinding of blokkers (adblock/firewall).';
+          return;
+        }
+        setCvStatus('busy', 'OpenCV laden…');
+        setTimeout(tick, 150);
+      }
+
+      tick();
+    })();
+  </script>
+</body>
+</html>
