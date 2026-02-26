@@ -445,7 +445,20 @@
       };
     }
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      window.addEventListener('load', async () => {
+        // during local development we don't want the worker to cache files and
+        // prevent live-server from refreshing; simply remove any existing workers
+        const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        if (isLocal) {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            regs.forEach((r) => r.unregister());
+            console.log('Dev: service workers unregistered');
+          } catch (e) {
+            console.warn('Dev: error unregistering SW', e);
+          }
+          return;
+        }
         // use a simple relative path (no leading ./) which is more forgiving on some servers
         navigator.serviceWorker.register('sw.js').catch(() => {});
       });
