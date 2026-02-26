@@ -241,7 +241,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v18</h1>
+      <h1>Munten Teller (foto)v19</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -338,6 +338,7 @@
               <strong>Gevonden munten:</strong> <span id="count">0</span>
             </div>
             <div id="msg" class="hint" style="margin-top:8px;"></div>
+            <div id="techStats" class="hint" style="margin-top:8px;"></div>
           </div>
         </div>
       </section>
@@ -373,6 +374,7 @@
       downloadBtn: document.getElementById('downloadBtn'),
       count: document.getElementById('count'),
       msg: document.getElementById('msg'),
+      techStats: document.getElementById('techStats'),
       cvDot: document.getElementById('cvDot'),
       cvStatus: document.getElementById('cvStatus'),
       progressWrap: document.getElementById('progressWrap'),
@@ -447,6 +449,7 @@
     function resetOutput() {
       els.count.textContent = '0';
       els.msg.textContent = '';
+      if (els.techStats) els.techStats.textContent = '';
       circlesState = [];
       if (imageLoaded) {
         drawImageToCanvas();
@@ -863,6 +866,16 @@
           useMaxRadius
         );
 
+        const stats = {
+          strict: strictOn,
+          houghRaw: 0,
+          afterEdge: 0,
+          afterDedupe1: 0,
+          contour: 0,
+          consensus: 0,
+          final: 0,
+        };
+
         let out = [];
         if (!circles.empty()) {
           for (let i = 0; i < circles.cols; i++) {
@@ -875,6 +888,8 @@
           }
         }
 
+        stats.houghRaw = out.length;
+
         out = out.filter((c) => c.r >= Math.max(0, useMinRadius));
         out = edgeRingFilter(out, edges, strictOn ? {
           sampleCount: 56,
@@ -885,11 +900,18 @@
           minRatio: 0.17,
           minHits: 8,
         });
+
+        stats.afterEdge = out.length;
         out = dedupeCircles(out);
+
+        stats.afterDedupe1 = out.length;
 
         if (!strictOn) {
           const contourOut = dedupeCircles(findContourCircles(blurred, minRadius, maxRadius));
-          out = consensusCircles(out, contourOut);
+          stats.contour = contourOut.length;
+          const consensusOut = consensusCircles(out, contourOut);
+          stats.consensus = consensusOut.length;
+          out = consensusOut;
         }
         if (els.whiteMode && els.whiteMode.checked) {
           const mask = buildNonWhiteMask(src);
@@ -897,6 +919,8 @@
           mask.delete();
         }
         out = dedupeCircles(out);
+
+        stats.final = out.length;
 
         src.delete();
         gray.delete();
@@ -906,6 +930,13 @@
 
         circlesState = out;
         render();
+        if (els.techStats) {
+          if (strictOn) {
+            els.techStats.textContent = `Techniek: Streng (Hough). Hough: ${stats.houghRaw} → edge: ${stats.afterEdge} → dedupe: ${stats.afterDedupe1} → eind: ${stats.final}`;
+          } else {
+            els.techStats.textContent = `Techniek: Hough + Contour consensus. Hough: ${stats.houghRaw} → edge: ${stats.afterEdge} → dedupe: ${stats.afterDedupe1} | contour: ${stats.contour} → consensus: ${stats.consensus} → eind: ${stats.final}`;
+          }
+        }
         if (out.length === 0) {
           els.msg.textContent = 'Geen munten gevonden met deze instellingen. Probeer param2 lager, of radius/minDist aanpassen.';
         } else {
