@@ -241,7 +241,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v6</h1>
+      <h1>Munten Teller (foto)v7</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -253,6 +253,11 @@
           <div class="control">
             <label for="fileInput">Foto</label>
             <input id="fileInput" type="file" accept="image/*,.heic,.heif" />
+          </div>
+
+          <div class="control">
+            <label for="whiteMode">Witte achtergrond modus <span>aanrader bij A4</span></label>
+            <input id="whiteMode" type="checkbox" checked />
           </div>
 
           <div class="btns">
@@ -345,6 +350,7 @@
 
     const els = {
       fileInput: document.getElementById('fileInput'),
+      whiteMode: document.getElementById('whiteMode'),
       canvas: document.getElementById('canvas'),
       detectBtn: document.getElementById('detectBtn'),
       editBtn: document.getElementById('editBtn'),
@@ -620,6 +626,73 @@
       return out;
     }
 
+    function buildNonWhiteMask(srcRgba) {
+      const rgb = new cv.Mat();
+      cv.cvtColor(srcRgba, rgb, cv.COLOR_RGBA2RGB);
+
+      const hsv = new cv.Mat();
+      cv.cvtColor(rgb, hsv, cv.COLOR_RGB2HSV);
+
+      const channels = new cv.MatVector();
+      cv.split(hsv, channels);
+      const s = channels.get(1);
+      const v = channels.get(2);
+
+      const sMask = new cv.Mat();
+      const vMask = new cv.Mat();
+      cv.threshold(s, sMask, 35, 255, cv.THRESH_BINARY);
+      cv.threshold(v, vMask, 235, 255, cv.THRESH_BINARY_INV);
+
+      const mask = new cv.Mat();
+      cv.bitwise_or(sMask, vMask, mask);
+
+      const kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(5, 5));
+      cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
+      cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernel);
+
+      rgb.delete();
+      hsv.delete();
+      s.delete();
+      v.delete();
+      channels.delete();
+      sMask.delete();
+      vMask.delete();
+      kernel.delete();
+
+      return mask;
+    }
+
+    function maskOverlapFilter(circles, mask) {
+      if (!circles || circles.length === 0) return [];
+      if (!mask || mask.empty()) return circles;
+
+      const w = mask.cols;
+      const h = mask.rows;
+      const data = mask.data;
+
+      function sampleMask(x, y) {
+        const xi = x | 0;
+        const yi = y | 0;
+        if (xi < 0 || yi < 0 || xi >= w || yi >= h) return 0;
+        return data[yi * w + xi] > 0 ? 1 : 0;
+      }
+
+      const out = [];
+      for (const c of circles) {
+        const samples = 40;
+        let hits = 0;
+        for (let i = 0; i < samples; i++) {
+          const a = (i / samples) * Math.PI * 2;
+          const rx = c.x + Math.cos(a) * c.r * 0.55;
+          const ry = c.y + Math.sin(a) * c.r * 0.55;
+          hits += sampleMask(rx, ry);
+        }
+        const ratio = hits / samples;
+        if (ratio >= 0.12) out.push(c);
+      }
+      return out;
+    }
+
     function findContourCircles(gray, minRadius, maxRadius) {
       const bin = new cv.Mat();
       cv.adaptiveThreshold(gray, bin, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 31, 2);
@@ -776,6 +849,11 @@
 
         const contourOut = dedupeCircles(findContourCircles(blurred, minRadius, maxRadius));
         out = consensusCircles(out, contourOut);
+        if (els.whiteMode && els.whiteMode.checked) {
+          const mask = buildNonWhiteMask(src);
+          out = maskOverlapFilter(out, mask);
+          mask.delete();
+        }
         out = dedupeCircles(out);
 
         src.delete();
