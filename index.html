@@ -236,7 +236,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v3</h1>
+      <h1>Munten Teller (foto)v4</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -519,6 +519,56 @@
       return kept.sort((a, b) => (a.y - b.y) || (a.x - b.x));
     }
 
+    function edgeRingFilter(circles, edges, opts) {
+      if (!circles || circles.length === 0) return [];
+      const width = edges.cols;
+      const height = edges.rows;
+
+      const sampleCount = opts && opts.sampleCount ? opts.sampleCount : 44;
+      const minRatio = opts && opts.minRatio ? opts.minRatio : 0.18;
+      const minHits = opts && opts.minHits ? opts.minHits : 8;
+      const ringInner = opts && opts.ringInner ? opts.ringInner : 0.92;
+      const ringOuter = opts && opts.ringOuter ? opts.ringOuter : 1.06;
+
+      function isEdgeAt(x, y) {
+        const xi = x | 0;
+        const yi = y | 0;
+        if (xi < 0 || yi < 0 || xi >= width || yi >= height) return false;
+        return edges.data[yi * width + xi] > 0;
+      }
+
+      const out = [];
+      for (const c of circles) {
+        const cx = c.x;
+        const cy = c.y;
+        const r = c.r;
+
+        if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(r) || r <= 0) continue;
+        if (r > Math.min(width, height) * 0.49) continue;
+
+        let hits = 0;
+        for (let i = 0; i < sampleCount; i++) {
+          const a = (i / sampleCount) * Math.PI * 2;
+          const ca = Math.cos(a);
+          const sa = Math.sin(a);
+
+          const x1 = cx + ca * r * ringInner;
+          const y1 = cy + sa * r * ringInner;
+          const x2 = cx + ca * r * ringOuter;
+          const y2 = cy + sa * r * ringOuter;
+
+          if (isEdgeAt(x1, y1) || isEdgeAt(x2, y2)) hits++;
+        }
+
+        const ratio = hits / sampleCount;
+        if (hits >= minHits && ratio >= minRatio) {
+          out.push(c);
+        }
+      }
+
+      return out;
+    }
+
     async function detectCoins() {
       if (!opencvReady || !imageLoaded || busy) return;
       setBusy(true);
@@ -542,6 +592,11 @@
         const blurred = new cv.Mat();
         const k = Math.max(1, blurK | 1);
         cv.GaussianBlur(gray, blurred, new cv.Size(k, k), 0, 0, cv.BORDER_DEFAULT);
+
+        const edges = new cv.Mat();
+        const t2 = Math.max(40, Math.min(260, param1));
+        const t1 = Math.max(20, Math.round(t2 * 0.5));
+        cv.Canny(blurred, edges, t1, t2);
 
         const circles = new cv.Mat();
         cv.HoughCircles(
@@ -569,11 +624,17 @@
         }
 
         out = out.filter((c) => c.r >= Math.max(0, minRadius));
+        out = edgeRingFilter(out, edges, {
+          sampleCount: 48,
+          minRatio: 0.17,
+          minHits: 8,
+        });
         out = dedupeCircles(out);
 
         src.delete();
         gray.delete();
         blurred.delete();
+        edges.delete();
         circles.delete();
 
         drawImageToCanvas();
