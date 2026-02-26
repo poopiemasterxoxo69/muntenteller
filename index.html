@@ -241,7 +241,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v20</h1>
+      <h1>Munten Teller (foto)v21</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -927,18 +927,36 @@
 
         stats.afterDedupe1 = out.length;
 
+        // When white background mode is enabled, make both Hough and Contour detections "leading"
+        // by taking the union (OR) of both result sets. Otherwise keep existing consensus behaviour.
+        let contourOut = [];
         if (!strictOn) {
-          const contourOut = dedupeCircles(findContourCircles(blurred, minRadius, maxRadius));
+          contourOut = dedupeCircles(findContourCircles(blurred, minRadius, maxRadius));
           stats.contour = contourOut.length;
-          const consensusOut = consensusCircles(out, contourOut);
-          stats.consensus = consensusOut.length;
-          out = consensusOut;
+          if (els.whiteMode && els.whiteMode.checked) {
+            // union Hough + Contour
+            out = dedupeCircles(out.concat(contourOut));
+          } else {
+            const consensusOut = consensusCircles(out, contourOut);
+            stats.consensus = consensusOut.length;
+            out = consensusOut;
+          }
+        } else {
+          // strictOn: normally only Hough is used; if whiteMode is enabled, also include contours (union)
+          if (els.whiteMode && els.whiteMode.checked) {
+            contourOut = dedupeCircles(findContourCircles(blurred, useMinRadius, useMaxRadius));
+            stats.contour = contourOut.length;
+            out = dedupeCircles(out.concat(contourOut));
+          }
         }
+
+        // If whiteMode is checked, prefer masking to remove non-white areas (helps remove false positives)
         if (els.whiteMode && els.whiteMode.checked) {
           const mask = buildNonWhiteMask(src);
           out = maskOverlapFilter(out, mask);
           mask.delete();
         }
+
         out = dedupeCircles(out);
 
         stats.final = out.length;
