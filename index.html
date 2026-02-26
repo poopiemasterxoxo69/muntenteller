@@ -101,6 +101,39 @@
       display: block;
     }
 
+    /* Barcode zoom modal */
+    .barcode-zoom-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .barcode-zoom-modal.active {
+      display: flex;
+    }
+
+    .barcode-zoom-content {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      max-width: 95vw;
+      max-height: 95vh;
+      overflow: auto;
+    }
+
+    .barcode-zoom-content canvas {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
     .grid {
       display: grid;
       grid-template-columns: 360px 1fr;
@@ -336,6 +369,14 @@
   </style>
 </head>
 <body>
+  <!-- Barcode zoom modal -->
+  <div id="barcodeZoomModal" class="barcode-zoom-modal">
+    <div class="barcode-zoom-content">
+      <canvas id="barcodeZoomCanvas"></canvas>
+      <p style="margin-top: 12px; text-align: center; color: var(--muted); font-size: 12px;">Klik ergens om te sluiten</p>
+    </div>
+  </div>
+
   <div class="container">
     <header>
       <h1>Munten Teller (foto)v25</h1>
@@ -1441,6 +1482,43 @@
         updateBarcodeList();
       });
     }
+
+    // Barcode zoom functionality
+    const coinBarcodeCanvas = document.getElementById('coinBarcodeCanvas');
+    const barcodeZoomModal = document.getElementById('barcodeZoomModal');
+    const barcodeZoomCanvas = document.getElementById('barcodeZoomCanvas');
+
+    if (coinBarcodeCanvas) {
+      coinBarcodeCanvas.addEventListener('click', () => {
+        if (coinBarcodeCanvas.style.display === 'block') {
+          // Copy the barcode to zoom canvas
+          const dataUrl = coinBarcodeCanvas.toDataURL('image/png');
+          const img = new Image();
+          img.onload = () => {
+            barcodeZoomCanvas.width = img.width;
+            barcodeZoomCanvas.height = img.height;
+            const zoomCtx = barcodeZoomCanvas.getContext('2d');
+            zoomCtx.drawImage(img, 0, 0);
+            barcodeZoomModal.classList.add('active');
+          };
+          img.src = dataUrl;
+        }
+      });
+    }
+
+    // Close zoom modal
+    barcodeZoomModal.addEventListener('click', (e) => {
+      if (e.target === barcodeZoomModal) {
+        barcodeZoomModal.classList.remove('active');
+      }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        barcodeZoomModal.classList.remove('active');
+      }
+    });
 
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach((btn) => {
