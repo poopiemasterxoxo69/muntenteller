@@ -1,4 +1,4 @@
-const CACHE_NAME = 'munten-teller-v1';
+const CACHE_NAME = 'munten-teller-v2';
 
 const CORE_ASSETS = [
   './',

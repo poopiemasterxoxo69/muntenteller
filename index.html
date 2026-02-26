@@ -380,7 +380,8 @@
     }
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        // use a simple relative path (no leading ./) which is more forgiving on some servers
+        navigator.serviceWorker.register('sw.js').catch(() => {});
       });
     }
 
