@@ -241,7 +241,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>Munten Teller (foto)v17</h1>
+      <h1>Munten Teller (foto)v18</h1>
       <p class="sub">Upload een foto van je euromunten. De pagina telt alleen het <strong>aantal</strong> en tekent een cirkel om elk gevonden muntje.</p>
     </header>
 
@@ -275,6 +275,21 @@
           <details class="control" style="padding: 0; overflow: hidden;">
             <summary style="list-style: none; cursor: pointer; padding: 10px;">Geavanceerde instellingen</summary>
             <div style="padding: 10px; display: grid; gap: 10px;">
+              <div class="control">
+                <label for="strictMode">Strenge detectie</label>
+                <input id="strictMode" type="checkbox" />
+              </div>
+
+              <div class="control">
+                <label for="targetRadius">Doel radius (strenge modus) <span id="targetRadiusVal">55</span></label>
+                <input id="targetRadius" type="range" min="20" max="180" step="1" value="55" />
+              </div>
+
+              <div class="control">
+                <label for="radiusTol">Radius tolerantie <span id="radiusTolVal">10</span></label>
+                <input id="radiusTol" type="range" min="3" max="40" step="1" value="10" />
+              </div>
+
               <div class="control">
                 <label for="resizeMax">Max breedte voor analyse <span id="resizeMaxVal">650</span> px</label>
                 <input id="resizeMax" type="range" min="400" max="900" step="10" value="650" />
@@ -362,6 +377,10 @@
       cvStatus: document.getElementById('cvStatus'),
       progressWrap: document.getElementById('progressWrap'),
 
+      strictMode: document.getElementById('strictMode'),
+      targetRadius: document.getElementById('targetRadius'),
+      radiusTol: document.getElementById('radiusTol'),
+
       resizeMax: document.getElementById('resizeMax'),
       blur: document.getElementById('blur'),
       dp: document.getElementById('dp'),
@@ -379,6 +398,9 @@
       param2Val: document.getElementById('param2Val'),
       minRadiusVal: document.getElementById('minRadiusVal'),
       maxRadiusVal: document.getElementById('maxRadiusVal'),
+
+      targetRadiusVal: document.getElementById('targetRadiusVal'),
+      radiusTolVal: document.getElementById('radiusTolVal'),
     };
 
     const ctx = els.canvas.getContext('2d', { willReadFrequently: true });
@@ -418,6 +440,8 @@
       els.param2Val.textContent = String(els.param2.value);
       els.minRadiusVal.textContent = String(els.minRadius.value);
       els.maxRadiusVal.textContent = String(els.maxRadius.value);
+      if (els.targetRadiusVal && els.targetRadius) els.targetRadiusVal.textContent = String(els.targetRadius.value);
+      if (els.radiusTolVal && els.radiusTol) els.radiusTolVal.textContent = String(els.radiusTol.value);
     }
 
     function resetOutput() {
@@ -792,9 +816,21 @@
 
       await nextFrame();
 
+      const strictOn = !!(els.strictMode && els.strictMode.checked);
       const { blurK, dp, minDist, param1, param2, minRadius, maxRadius } = getParams();
 
-      if (maxRadius > 0 && minRadius > maxRadius) {
+      const targetR = Math.max(5, Number(els.targetRadius && els.targetRadius.value ? els.targetRadius.value : 55));
+      const tolR = Math.max(0, Number(els.radiusTol && els.radiusTol.value ? els.radiusTol.value : 10));
+      const strictMinR = Math.max(0, Math.round(targetR - tolR));
+      const strictMaxR = Math.max(strictMinR + 1, Math.round(targetR + tolR));
+
+      const useMinRadius = strictOn ? strictMinR : minRadius;
+      const useMaxRadius = strictOn ? strictMaxR : maxRadius;
+      const useParam2 = strictOn ? Math.max(param2, 55) : param2;
+      const useMinDist = strictOn ? Math.max(minDist, Math.round(targetR * 1.35)) : minDist;
+      const useParam1 = strictOn ? Math.max(param1, 150) : param1;
+
+      if (useMaxRadius > 0 && useMinRadius > useMaxRadius) {
         els.msg.innerHTML = '<span class="err">Min radius is groter dan max radius.</span>';
         setBusy(false);
         return;
@@ -820,11 +856,11 @@
           circles,
           cv.HOUGH_GRADIENT,
           dp,
-          minDist,
-          param1,
-          param2,
-          minRadius,
-          maxRadius
+          useMinDist,
+          useParam1,
+          useParam2,
+          useMinRadius,
+          useMaxRadius
         );
 
         let out = [];
@@ -839,16 +875,22 @@
           }
         }
 
-        out = out.filter((c) => c.r >= Math.max(0, minRadius));
-        out = edgeRingFilter(out, edges, {
+        out = out.filter((c) => c.r >= Math.max(0, useMinRadius));
+        out = edgeRingFilter(out, edges, strictOn ? {
+          sampleCount: 56,
+          minRatio: 0.22,
+          minHits: 10,
+        } : {
           sampleCount: 48,
           minRatio: 0.17,
           minHits: 8,
         });
         out = dedupeCircles(out);
 
-        const contourOut = dedupeCircles(findContourCircles(blurred, minRadius, maxRadius));
-        out = consensusCircles(out, contourOut);
+        if (!strictOn) {
+          const contourOut = dedupeCircles(findContourCircles(blurred, minRadius, maxRadius));
+          out = consensusCircles(out, contourOut);
+        }
         if (els.whiteMode && els.whiteMode.checked) {
           const mask = buildNonWhiteMask(src);
           out = maskOverlapFilter(out, mask);
@@ -955,7 +997,7 @@
 
     function wireEvents() {
       updateLabels();
-      for (const id of ['resizeMax','blur','dp','minDist','param1','param2','minRadius','maxRadius']) {
+      for (const id of ['strictMode','targetRadius','radiusTol','resizeMax','blur','dp','minDist','param1','param2','minRadius','maxRadius']) {
         els[id].addEventListener('input', () => {
           updateLabels();
           if (imageLoaded) {
