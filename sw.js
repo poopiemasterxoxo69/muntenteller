@@ -51,15 +51,34 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // Cache-first for same-origin (fast for GitHub Pages)
+  // For same-origin navigations (HTML pages) use network-first so users get latest version
   if (isSameOrigin(url)) {
+    const isNavigation = req.mode === 'navigate' || (req.headers && req.headers.get && req.headers.get('accept') && req.headers.get('accept').includes('text/html')) || url.pathname === '/' || url.pathname.endsWith('index.html');
+    if (isNavigation) {
+      event.respondWith(
+        (async () => {
+          const cache = await caches.open(CACHE_NAME);
+          try {
+            const res = await fetch(req);
+            if (res && res.ok) cache.put(req, res.clone());
+            return res;
+          } catch (err) {
+            const cached = await cache.match(req) || await cache.match('./index.html') || await cache.match('./');
+            return cached || new Response('Offline', { status: 503, statusText: 'Offline' });
+          }
+        })()
+      );
+      return;
+    }
+
+    // Cache-first for other same-origin assets
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
         const cached = await cache.match(req);
         if (cached) return cached;
         const res = await fetch(req);
-        if (res.ok) cache.put(req, res.clone());
+        if (res && res.ok) cache.put(req, res.clone());
         return res;
       })()
     );

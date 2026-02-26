@@ -55,6 +55,47 @@
       line-height: 1.35;
     }
 
+    /* tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      appearance: none;
+      padding: 12px 16px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.2px;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: 360px 1fr;
@@ -315,6 +356,7 @@
             <button id="detectBtn" class="primary" disabled>Detecteer & tel</button>
             <button id="editBtn" disabled>Bewerken: uit</button>
             <button id="resetBtn" disabled>Reset</button>
+            <button id="clearCirclesBtn" disabled>Wis cirkels</button>
             <button id="downloadBtn" disabled>Download resultaat</button>
           </div>
 
@@ -405,23 +447,74 @@
       </section>
     </div>
 
-    <!-- handmatige munten calculator -->
-    <div class="coinPanel">
-      <h2>Handmatige berekening</h2>
-      <div class="coins">
-        <div class="coin" data-value="0.05"><img src="img/5-cent.png" alt="5 cent"></div>
-        <div class="coin" data-value="0.10"><img src="img/10-cent.png" alt="10 cent"></div>
-        <div class="coin" data-value="0.20"><img src="img/20-cent.png" alt="20 cent"></div>
-        <div class="coin" data-value="0.50"><img src="img/50-cent.png" alt="50 cent"></div>
-        <div class="coin" data-value="1.00"><img src="img/1-euro.png" alt="1 euro"></div>
-        <div class="coin" data-value="2.00"><img src="img/2-euro.png" alt="2 euro"></div>
-        <div class="coin total">Totaal: €<span id="coinTotal">0.00</span></div>
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="coins">Handmatig tellen</button>
+      <button class="tab-btn" data-tab="barcode-calc">Barcode Reader</button>
+    </div>
+
+    <!-- Tab: Handmatig tellen -->
+    <div id="coins" class="tab-content active">
+      <div class="coinPanel">
+        <h2>Handmatige berekening</h2>
+        <div class="coins">
+          <div class="coin" data-value="0.05"><img src="img/5-cent.png" alt="5 cent"></div>
+          <div class="coin" data-value="0.10"><img src="img/10-cent.png" alt="10 cent"></div>
+          <div class="coin" data-value="0.20"><img src="img/20-cent.png" alt="20 cent"></div>
+          <div class="coin" data-value="0.50"><img src="img/50-cent.png" alt="50 cent"></div>
+          <div class="coin" data-value="1.00"><img src="img/1-euro.png" alt="1 euro"></div>
+          <div class="coin" data-value="2.00"><img src="img/2-euro.png" alt="2 euro"></div>
+          <div class="coin total">Totaal: €<span id="coinTotal">0.00</span></div>
+        </div>
+        <div style="margin-top: 20px;">
+          <h3 style="font-size: 13px; color: var(--muted); margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.2px;">Barcode van detect</h3>
+          <canvas id="coinBarcodeCanvas" style="width: 100%; border-radius: 14px; border: 1px solid var(--border); background: rgba(0,0,0,0.20); display: none;"></canvas>
+        </div>
       </div>
     </div>
-  </div>
+
+    <!-- Tab: Barcode Reader -->
+    <div id="barcode-calc" class="tab-content">
+      <div class="coinPanel">
+        <h2>Barcode Rekenmachine</h2>
+        <div class="control" style="margin-bottom: 12px;">
+          <label for="barcodeCalcInput">Barcode invoeren</label>
+          <input id="barcodeCalcInput" type="text" placeholder="Plak hier de barcode (aantal(x)waarde(y)ENTER)..." style="padding: 8px; border-radius: 10px; border: 1px solid var(--border); background: rgba(0,0,0,0.18); color: var(--text); width: 100%;" />
+        </div>
+        <div id="barcodeCalcResult" style="display: none; padding: 14px; background: rgba(0,0,0,0.12); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px;">
+          <div style="display: flex; gap: 20px; align-items: flex-start;">
+            <div style="flex: 1;">
+              <p style="margin: 0 0 8px 0; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.2px;">Aantal munten</p>
+              <p style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600;" id="calcCount">0</p>
+              <p style="margin: 0 0 8px 0; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.2px;">Waarde per munt</p>
+              <p style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600;" id="calcValue">€0.00</p>
+              <p style="margin: 0 0 8px 0; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.2px;">Totaal bedrag</p>
+              <p style="margin: 0; font-size: 24px; font-weight: 600; color: var(--accent);" id="calcTotal">€0.00</p>
+            </div>
+            <div style="flex: 0 0 140px; text-align: center;">
+              <p style="margin: 0 0 10px 0; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.2px;">Munt</p>
+              <img id="calcCoinImg" src="" alt="munt" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border);" />
+            </div>
+          </div>
+        </div>
+        <div id="barcodeCalcError" style="display: none; padding: 10px; background: rgba(255, 107, 107, 0.12); border: 1px solid rgba(255, 107, 107, 0.5); border-radius: 8px; color: var(--danger); font-size: 13px;"></div>
+        <div style="margin-top: 16px;">
+          <h3 style="margin: 0 0 10px 0; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.2px;">Gescande items</h3>
+          <div id="barcodeList" style="display: grid; gap: 8px;">
+            <div style="padding: 10px; background: rgba(0,0,0,0.12); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; text-align: center;">Nog geen items gescand</div>
+          </div>
+        </div>
+        <div id="barcodeListTotal" style="display: none; padding: 12px; background: rgba(122, 162, 255, 0.12); border: 1px solid rgba(122, 162, 255, 0.35); border-radius: 8px; margin-top: 10px; margin-bottom: 12px;">
+          <p style="margin: 0; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.2px;">Totaal alle items</p>
+          <p style="margin: 8px 0 0 0; font-size: 20px; font-weight: 600; color: var(--accent);" id="barcodeGrandTotal">€0.00</p>
+        </div>
+        <button id="clearBarcodeListBtn" style="width: 100%; padding: 10px; display: none; margin-bottom: 12px;">Lijst wissen</button>
+        <div class="hint">Plak gescande barcodes in het formaat: aantal(15)waarde(1.00)ENTER</div>
+      </div>
 
   <script async src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript"></script>
   <script defer src="https://unpkg.com/heic2any/dist/heic2any.min.js" type="text/javascript"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js" type="text/javascript"></script>
   <script>
     // Polyfill for CanvasRenderingContext2D.roundRect for browsers that don't support it
     if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
@@ -471,6 +564,7 @@
       detectBtn: document.getElementById('detectBtn'),
       editBtn: document.getElementById('editBtn'),
       resetBtn: document.getElementById('resetBtn'),
+      clearCirclesBtn: document.getElementById('clearCirclesBtn'),
       downloadBtn: document.getElementById('downloadBtn'),
       count: document.getElementById('count'),
       msg: document.getElementById('msg'),
@@ -526,6 +620,7 @@
       busy = isBusy;
       els.detectBtn.disabled = !opencvReady || !imageLoaded || busy;
       els.resetBtn.disabled = !imageLoaded || busy;
+      els.clearCirclesBtn.disabled = !imageLoaded || busy || circlesState.length === 0;
       els.downloadBtn.disabled = !imageLoaded || busy;
       if (els.progressWrap) {
         els.progressWrap.classList.toggle('hidden', !isBusy);
@@ -555,6 +650,8 @@
       coinTotal = 0;
       const coinTotalEl = document.getElementById('coinTotal');
       if (coinTotalEl) coinTotalEl.textContent = '0.00';
+      const barcodeCanvas = document.getElementById('coinBarcodeCanvas');
+      if (barcodeCanvas) barcodeCanvas.style.display = 'none';
       if (imageLoaded) {
         drawImageToCanvas();
       } else {
@@ -562,11 +659,20 @@
       }
     }
 
+    function clearCircles() {
+      circlesState = [];
+      render();
+      els.msg.textContent = '';
+      const barcodeCanvas = document.getElementById('coinBarcodeCanvas');
+      if (barcodeCanvas) barcodeCanvas.style.display = 'none';
+    }
+
     function render() {
       if (!imageLoaded) return;
       drawImageToCanvas();
       drawCircles(circlesState);
       els.count.textContent = String(circlesState.length);
+      if (els.clearCirclesBtn) els.clearCirclesBtn.disabled = circlesState.length === 0;
     }
 
     function drawImageToCanvas() {
@@ -1138,6 +1244,7 @@
           els.detectBtn.disabled = !opencvReady;
           if (els.editBtn) els.editBtn.disabled = false;
           els.resetBtn.disabled = false;
+          if (els.clearCirclesBtn) els.clearCirclesBtn.disabled = true;
           els.downloadBtn.disabled = false;
           setBusy(false);
         };
@@ -1180,6 +1287,9 @@
         });
       }
       els.resetBtn.addEventListener('click', resetOutput);
+      if (els.clearCirclesBtn) {
+        els.clearCirclesBtn.addEventListener('click', clearCircles);
+      }
       els.downloadBtn.addEventListener('click', downloadCanvas);
 
       els.canvas.addEventListener('pointerdown', (ev) => {
@@ -1206,11 +1316,140 @@
             if (Number.isFinite(v)) {
               coinTotal += v;
               document.getElementById('coinTotal').textContent = coinTotal.toFixed(2);
+              
+              // Generate barcode: aantal(x)waarde(y)ENTER
+              const barcodeCanvas = document.getElementById('coinBarcodeCanvas');
+              const count = circlesState.length;
+              const barcodeValue = `aantal(${count})waarde(${v.toFixed(2)})ENTER`;
+              
+              if (barcodeCanvas && typeof JsBarcode !== 'undefined') {
+                barcodeCanvas.style.display = 'block';
+                try {
+                  JsBarcode(barcodeCanvas, barcodeValue, {
+                    format: 'CODE128',
+                    width: 2,
+                    height: 60,
+                    displayValue: true
+                  });
+                } catch (e) {
+                  console.warn('Barcode fout:', e);
+                }
+              }
             }
           });
         });
       }
     }
+
+    // Barcode calculator listener
+    const barcodeCalcInput = document.getElementById('barcodeCalcInput');
+    const barcodeCalcError = document.getElementById('barcodeCalcError');
+    const barcodeList = document.getElementById('barcodeList');
+    const barcodeListTotal = document.getElementById('barcodeListTotal');
+    const clearBarcodeListBtn = document.getElementById('clearBarcodeListBtn');
+    
+    let scannedItems = [];
+    
+    const coinImages = {
+      '0.05': 'img/5-cent.png',
+      '0.10': 'img/10-cent.png',
+      '0.20': 'img/20-cent.png',
+      '0.50': 'img/50-cent.png',
+      '1.00': 'img/1-euro.png',
+      '2.00': 'img/2-euro.png'
+    };
+
+    function updateBarcodeList() {
+      if (scannedItems.length === 0) {
+        barcodeList.innerHTML = '<div style="padding: 10px; background: rgba(0,0,0,0.12); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; text-align: center;">Nog geen items gescand</div>';
+        barcodeListTotal.style.display = 'none';
+        clearBarcodeListBtn.style.display = 'none';
+        return;
+      }
+
+      let grandTotal = 0;
+      barcodeList.innerHTML = scannedItems.map((item, idx) => {
+        const itemTotal = item.aantal * item.waarde;
+        grandTotal += itemTotal;
+        const waardeStr = item.waarde.toFixed(2);
+        const coinImg = coinImages[waardeStr];
+        return `
+          <div style="padding: 10px; background: rgba(0,0,0,0.12); border: 1px solid var(--border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <img src="${coinImg || ''}" alt="munt" style="width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--border); flex-shrink: 0;" />
+            <div style="flex: 1;">
+              <p style="margin: 0; font-size: 14px; font-weight: 600;">${item.aantal} × €${item.waarde.toFixed(2)} = <span style="color: var(--accent);">€${itemTotal.toFixed(2)}</span></p>
+            </div>
+            <button onclick="document.dispatchEvent(new CustomEvent('removeBarcode', {detail: ${idx}}))" style="padding: 6px 10px; font-size: 12px; flex-shrink: 0;">Verwijder</button>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('barcodeGrandTotal').textContent = '€' + grandTotal.toFixed(2);
+      barcodeListTotal.style.display = 'block';
+      clearBarcodeListBtn.style.display = 'block';
+    }
+
+    if (barcodeCalcInput) {
+      barcodeCalcInput.addEventListener('input', () => {
+        const input = barcodeCalcInput.value.trim();
+        barcodeCalcError.style.display = 'none';
+
+        if (!input) return;
+
+        // Parse: aantal(x)waarde(y)ENTER
+        const regex = /aantal\((\d+)\)waarde\(([\d.]+)\)ENTER/;
+        const match = input.match(regex);
+
+        if (!match) {
+          barcodeCalcError.style.display = 'block';
+          barcodeCalcError.textContent = 'Ongeldig formaat. Verwacht: aantal(x)waarde(y)ENTER';
+          return;
+        }
+
+        const aantal = parseInt(match[1], 10);
+        const waarde = parseFloat(match[2]);
+
+        if (!Number.isFinite(aantal) || !Number.isFinite(waarde) || aantal <= 0 || waarde <= 0) {
+          barcodeCalcError.style.display = 'block';
+          barcodeCalcError.textContent = 'Ongeldig aantal of waarde';
+          return;
+        }
+
+        // Voeg toe aan list
+        scannedItems.push({ aantal, waarde });
+        updateBarcodeList();
+        barcodeCalcInput.value = '';
+      });
+    }
+
+    // Remove item from list
+    document.addEventListener('removeBarcode', (e) => {
+      scannedItems.splice(e.detail, 1);
+      updateBarcodeList();
+    });
+
+    // Clear list button
+    if (clearBarcodeListBtn) {
+      clearBarcodeListBtn.addEventListener('click', () => {
+        scannedItems = [];
+        updateBarcodeList();
+      });
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tabName = btn.getAttribute('data-tab');
+        
+        // Deactivate all tabs and buttons
+        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach((t) => t.classList.remove('active'));
+        
+        // Activate selected tab and button
+        btn.classList.add('active');
+        document.getElementById(tabName).classList.add('active');
+      });
+    });
 
     wireEvents();
 
